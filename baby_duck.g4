@@ -38,10 +38,8 @@ factor: ('+'| '-')? (Id {symbol_table1.push_factor($Id.text, None, False)} | CTE
 body: '{' statement* '}';
 assign: Id '=' expression {symbol_table1.assign_value($Id.text, '=')}';';
 condition: if '(' expression ')' {symbol_table1.push_if()} body (else {symbol_table1.push_else()} body)? {symbol_table1.push_if_finish()}';';
-cycle: while body {symbol_table1.push_while()} do '(' expression ')' {symbol_table1.push_while_end()} ';';
-print: 'print' '(' (expression | CTE_STRING) (',' (expression | CTE_STRING))* ')' ';'{
-symbol_table1.printSymbols();
-};
+cycle: while {symbol_table1.push_while()} body do '(' expression ')' {symbol_table1.push_if()} {symbol_table1.push_while_end()} ';';
+print: 'print' '(' (expression {symbol_table1.print_function()} | CTE_STRING {symbol_table1.push_factor($CTE_STRING.text, "string", True); symbol_table1.print_function()}) (',' (expression | CTE_STRING))* ')' ';';
 functionCall: Id '(' (expression (',' expression)*)? ')' ';';
 type: int | float;
 variables: var listvars*;
@@ -50,7 +48,7 @@ symbol_table1.add_symbol($listaId.text, $type.text, current_scope);
 };
 listaId : Id idExtra;
 idExtra : (',' listaId)?;
-function: {global current_scope}void {current_scope+=1} Id '(' parameters* ')' '[' variables? body {symbol_table1.add_function($Id.text, $parameters.text, $variables.text, current_scope)}']' ';'{
+function: {global current_scope}void {current_scope+=1} Id '(' parameters* ')' '[' variables? body {symbol_table1.add_function($Id.text, $parameters.text, $variables.text)}']' ';'{
 current_scope-=1;
 symbol_table1.pop_function($Id.text, $parameters.text, $variables.text);
 };
@@ -60,5 +58,5 @@ parameter: Id ':' type{
 symbol_table1.add_symbol($Id.text, $type.text, current_scope)
 };
 
-program: programa Id ';' variables? {symbol_table1.add_function($Id.text, 0, $variables.text, current_scope)}(function)* main body end;
+program: programa Id ';' variables? {symbol_table1.add_function($Id.text, 0, $variables.text)}(function)* main body end {symbol_table1.maquina_virtual()};
 statement: (assign | condition | cycle | print | functionCall);

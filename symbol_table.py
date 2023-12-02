@@ -2,6 +2,7 @@ from quadruple import Quadruple
 class SymbolTable:
     def __init__(self):
         self.symbols = {}
+        self.temporals = []
         self.functions = {}
         self.quadruples = []
         self.vgi = 1000
@@ -19,7 +20,6 @@ class SymbolTable:
         self.PilaO = []
         self.Quad = []
         self.Psaltos = []
-        self.avail_temporals = []
         self.semantic_cube = SemanticCube()
         self.operand_dict = {
             '+': 1,
@@ -39,31 +39,31 @@ class SymbolTable:
             '=': 15
         }
 
-        self.operands = {}
+        self.constants = {}
 
     def push_operator(self, operator):
         self.Poper.append(self.operand_dict[operator])
-        print("Operadores", self.Poper)
 
     def push_factor(self, newId, newType, isConst):
         if newType == "int" and isConst:
-            self.operands[newId] = {"memory": self.ci}
-            self.ci += 1
-            self.PilaO.append(self.operands[newId]["memory"])
+            self.constants[self.ci] = {"id": newId}
+            self.PilaO.append(self.ci)
             self.Ptypes.append(newType)
+            self.ci += 1
+
 
         elif newType == "float" and isConst:
-            self.operands[newId] = {"memory": self.cf}
-            self.cf += 1
-            self.PilaO.append(self.operands[newId]["memory"])
+            self.constants[self.cf] = {"id": newId}
+            self.PilaO.append(self.cf)
             self.Ptypes.append(newType)
+            self.cf += 1
 
         #String goes to the stack?
         elif newType == "string" and isConst:
-            self.operands[newId] = {"memory": self.vcs}
-            self.vcs += 1
-            self.PilaO.append(self.operands[newId]["memory"])
+            self.constants[self.vcs] = {"id": newId}
+            self.PilaO.append(self.vcs)
             self.Ptypes.append(newType)
+            self.vcs += 1
 
         elif isConst == False:
             try:
@@ -72,8 +72,6 @@ class SymbolTable:
                 self.Ptypes.append(self.symbols[newId]["data_type"])
             except KeyError:
                 raise KeyError(f"Symbol '{newId}' not in this scope")
-        #print("Ptypes: ", self.Ptypes, len(self.Ptypes))
-        #print("PilaO", self.PilaO, len(self.PilaO))
 
     def get_key_by_value(self, value):
         for key, val in self.operand_dict.items():
@@ -82,7 +80,6 @@ class SymbolTable:
         return None
     def push_term(self):
         if len(self.Poper) > 0:
-            print("Suma", self.Poper)
             if self.Poper[-1] == 1 or self.Poper[-1] == 2:
                 right_operand = self.PilaO.pop()
                 right_type = self.Ptypes.pop()
@@ -97,11 +94,9 @@ class SymbolTable:
                 result_type = self.semantic_cube.get_result_type(operator2, left_type, right_type)
                 result = 0
                 if result_type == 'error':
-                    # Handle type mismatch or unsupported operation
                     raise ValueError("An Error ocurred")
 
                 else:
-                    # Perform the operation and update the result type
                     if result_type == "int":
                         result = self.ti
                         self.ti += 1
@@ -116,14 +111,12 @@ class SymbolTable:
 
                     quad = (operator, left_operand, right_operand, result)
                     self.Quad.append(quad)
-                    print("Quads", self.Quad)
 
                     self.PilaO.append(result)
                     self.Ptypes.append(result_type)
 
     def push_term_mas_menos(self):
         if len(self.Poper) > 0:
-            print("MasMenos", self.Poper)
             if self.Poper[-1] == 6 or self.Poper[-1] == 7 or self.Poper[-1] == 8:
                 right_operand = self.PilaO.pop()
                 right_type = self.Ptypes.pop()
@@ -149,16 +142,15 @@ class SymbolTable:
 
                     elif result_type == "bool":
                         result = self.tb
+                        self.add_temporal("tb", "bool", 0, result)
                         self.tb += 1
 
                     quad = (operator, left_operand, right_operand, result)
                     self.Quad.append(quad)
-                    print("Quads", self.Quad)
                     self.PilaO.append(result)
                     self.Ptypes.append(result_type)
     def push_term_multiplication(self):
         if len(self.Poper) > 0:
-            print("Test1", self.Poper)
             if self.Poper[-1] == 3 or self.Poper[-1] == 4:
                 right_operand = self.PilaO.pop()
                 right_type = self.Ptypes.pop()
@@ -186,7 +178,6 @@ class SymbolTable:
 
                     quad = (operator, left_operand, right_operand, result)
                     self.Quad.append(quad)
-                    print("Quads", self.Quad)
                     self.PilaO.append(result)
                     self.Ptypes.append(result_type)
 
@@ -207,16 +198,15 @@ class SymbolTable:
         operand1_type = self.Ptypes.pop()
         operand1 = self.PilaO.pop()
         target = self.PilaO.pop()
+
         target_type = self.Ptypes.pop()
 
         res_type = self.semantic_cube.get_result_type(operator2, operand1_type, target_type)
-        print("Res TYPE: ", res_type)
         if res_type == 'error':
             raise ValueError("An Error ocurred")
         else:
-            quad = (operator, operand1, None, target)
+            quad = (operator, target, None, operand1)
             self.Quad.append(quad)
-            print("Quads Assign: ", self.Quad)
 
     def push_if(self):
         res_type = self.Ptypes.pop()
@@ -226,7 +216,7 @@ class SymbolTable:
 
         else:
             res = self.PilaO.pop()
-            quad = ('GOTO', res, None, None)
+            quad = ('GOTOF', res, None, None)
             self.Quad.append(quad)
             self.Psaltos.append(len(self.Quad) - 1)
 
@@ -236,10 +226,7 @@ class SymbolTable:
         quad = list(self.Quad[endIf])
         quad[3] = len(self.Quad)
 
-        #Dar quad ya modificado
-
         self.Quad[endIf] = tuple(quad)
-
 
     def push_else(self):
         quad = ('GOTO', None, None, None)
@@ -252,17 +239,8 @@ class SymbolTable:
 
         self.Psaltos.append(len(self.Quad) - 1)
 
-
     def push_while(self):
-        pos_act = len(self.Quad) - 1
-        exp_type = self.Ptypes.pop()
-        if (exp_type != "bool"):
-            print("Error! Type - Mismatch")
-        else:
-            res = self.PilaO.pop()
-            quad = ('GOTO', res, None, None)
-            self.Quad.append(quad)
-            self.Psaltos.append(pos_act)
+        self.Psaltos.append(len(self.Quad) - 1)
 
     def push_while_end(self):
         end = self.Psaltos.pop()
@@ -302,16 +280,19 @@ class SymbolTable:
             if self.vlf >= 5000:
                 print("Int limit counter passed !")
 
+    def add_temporal(self, name, data_type, scope, memory):
+        newName = name + str(memory)
+        self.symbols[newName] = {"data_type": data_type, "scope": scope, "memory_data": memory, "valor": 0}
     def add_symbol(self, name, data_type, scope):
         newNames = name.split(",")
         for newName in newNames:
             if newName in self.symbols and self.symbols[newName]["scope"] == scope and self.symbols[newName]["scope"] == 0:
                 raise ValueError(f"Symbol '{newName}' redeclared in the same scope")
-            self.symbols[newName] = {"data_type": data_type, "scope": scope, "memory_data": 0}
+            self.symbols[newName] = {"data_type": data_type, "scope": scope, "memory_data": 0, "valor": 0}
             self.add_memory_number(newName)
         return self.symbols
 
-    def add_function(self, name, param_names, var_names, scope):
+    def add_function(self, name, param_names, var_names):
         definitive_vars = []
         definitive_params = []
         if name in self.functions:
@@ -375,21 +356,208 @@ class SymbolTable:
 
     def pop_function(self, name, parameters, variables):
         if name in self.functions:
-            print(f"Function '{name}' deleted successfully")
-            print("Vars to delete: ", self.functions[name]["var_names"])
-            print("Params to delete: ", self.functions[name]["param_names"])
             self.pop_symbols(self.functions[name]["var_names"], self.functions[name]["param_names"])
             del self.functions[name]
 
         else:
             raise ValueError(f"Function '{name}' not found in the function table")
 
+    def print_function(self):
+        self.Poper.append('print')
+        exists = any(item.get('memory_data') == self.PilaO[-1] for item in self.symbols.values())
 
+        if exists:
+            operator = self.Poper.pop()
+            operands = self.PilaO.pop()
+            quad = (operator, None, None, operands)
+            self.Quad.append(quad)
+
+        else:
+            existsConst = self.constants.get(self.PilaO[-1])
+            if existsConst:
+                operator = self.Poper.pop()
+                newConst = self.PilaO.pop()
+                constant_key = [key for key, value in self.constants.items() if key == newConst]
+                constant = constant_key[0]
+                quad = (operator, None, None, constant)
+                self.Quad.append(quad)
+                self.Ptypes.pop()
+                print("QUADS Print function: ", self.Quad)
+            else:
+                print("Does not exist \n")
+
+    def maquina_virtual(self):
+        quad = 0
+
+        while quad < len(self.Quad):
+            oper1 = self.Quad[quad][1]
+            #print("VIRTUAL MACHINEEEE: ", oper1)
+            #print("Constants: ", self.constants)
+            oper2 = self.Quad[quad][2]
+            result = self.Quad[quad][3]
+
+            constant_key = [key for key, value in self.constants.items() if key == oper1]
+
+            oper2_key = [key for key, value in self.symbols.items() if value.get('memory_data') == oper1]
+
+            if self.Quad[quad][0] == 15:
+                constant_key = [key for key, value in self.constants.items() if key == oper1]
+                oper2_key = [key for key, value in self.symbols.items() if value.get('memory_data') == oper1]
+                if constant_key:
+                    symbol_key = [key for key, value in self.symbols.items() if value.get('memory_data') == result]
+                    str_symbol_key = symbol_key[0]
+                    str_constant_key = constant_key[0]
+                    self.symbols[str_symbol_key]["valor"] = self.constants[str_constant_key]["id"]
+
+                elif oper1 >= 5000:
+                    symbol_key = [key for key, value in self.symbols.items() if value.get('memory_data') == result]
+                    str_symbol_key = symbol_key[0]
+                    self.symbols[str_symbol_key]["valor"] = self.temporals[-1]
+
+                elif oper1 < 5000:
+                    str_oper_key = oper2_key[0]
+                    symbol_key = [key for key, value in self.symbols.items() if value.get('memory_data') == result]
+                    str_symbol_key = symbol_key[0]
+                    self.symbols[str_symbol_key]["valor"] = self.symbols[str_oper_key]["valor"]
+
+
+            #operator is +
+            elif self.Quad[quad][0] == 1:
+                constant_key = [key for key, value in self.constants.items() if key == oper2]
+                oper2_key = [key for key, value in self.symbols.items() if value.get('memory_data') == oper2]
+                oper1_key = [key for key, value in self.symbols.items() if value.get('memory_data') == oper1]
+                str_oper1_key = oper1_key[0]
+
+                if constant_key:
+                    str_constant_key = constant_key[0]
+
+                    self.temporals.append(int(self.symbols[str_oper1_key]["valor"]) + int(self.constants[str_constant_key]["id"]))
+
+                elif oper2_key:
+                    str_oper2_key = oper2_key[0]
+                    self.temporals.append(int(self.symbols[str_oper1_key]["valor"]) + int(self.symbols[str_oper2_key]["valor"]))
+
+            elif self.Quad[quad][0] == 2:
+                constant_key = [key for key, value in self.constants.items() if key == oper2]
+                oper2_key = [key for key, value in self.symbols.items() if value.get('memory_data') == oper2]
+                oper1_key = [key for key, value in self.symbols.items() if value.get('memory_data') == oper1]
+                str_oper1_key = oper1_key[0]
+
+                if constant_key:
+                    str_constant_key = constant_key[0]
+
+                    self.temporals.append(int(self.symbols[str_oper1_key]["valor"]) - int(self.constants[str_constant_key]["id"]))
+
+
+                elif oper2_key:
+                    str_oper2_key = oper2_key[0]
+                    self.temporals.append(int(self.symbols[str_oper1_key]["valor"]) - int(self.symbols[str_oper2_key]["valor"]))
+
+            #operator is *
+            elif self.Quad[quad][0] == 3:
+                constant_key = [key for key, value in self.constants.items() if key == oper2]
+                oper2_key = [key for key, value in self.symbols.items() if value.get('memory_data') == oper2]
+                oper1_key = [key for key, value in self.symbols.items() if value.get('memory_data') == oper1]
+                str_oper1_key = oper1_key[0]
+
+                if constant_key:
+                    str_constant_key = constant_key[0]
+                    self.temporals.append(int(self.symbols[str_oper1_key]["valor"]) * int(self.constants[str_constant_key]["id"]))
+
+
+                elif oper2_key:
+                    str_oper2_key = oper2_key[0]
+                    self.temporals.append(int(self.symbols[str_oper1_key]["valor"]) * int(
+                        self.symbols[str_oper2_key]["valor"]))
+
+            #operator is /
+            elif self.Quad[quad][0] == 4:
+                constant_key = [key for key, value in self.constants.items() if key == oper2]
+                oper2_key = [key for key, value in self.symbols.items() if value.get('memory_data') == oper2]
+                oper1_key = [key for key, value in self.symbols.items() if value.get('memory_data') == oper1]
+                str_oper1_key = oper1_key[0]
+
+                if constant_key:
+                    str_constant_key = constant_key[0]
+                    self.temporals.append(int(self.symbols[str_oper1_key]["valor"]) / int(
+                        self.constants[str_constant_key]["id"]))
+
+                elif oper2_key:
+                    str_oper2_key = oper2_key[0]
+                    self.temporals.append(int(self.symbols[str_oper1_key]["valor"]) / int(self.symbols[str_oper2_key]["valor"]))
+
+            # operator is <
+            elif self.Quad[quad][0] == 7:
+                constant_key = [key for key, value in self.constants.items() if key == oper2]
+                oper2_key = [key for key, value in self.symbols.items() if value.get('memory_data') == oper2]
+                oper1_key = [key for key, value in self.symbols.items() if value.get('memory_data') == oper1]
+                str_oper1_key = oper1_key[0]
+                result_key = [key for key, value in self.symbols.items() if value.get('memory_data') == result]
+                str_result_key = result_key[0]
+                if constant_key:
+                    str_constant_key = constant_key[0]
+                    self.symbols[str_result_key]["valor"] = int(self.symbols[str_oper1_key]["valor"]) < int(
+                        self.constants[str_constant_key]["id"])
+
+                elif oper2_key:
+                    str_oper2_key = oper2_key[0]
+
+                    self.symbols[str_result_key]["valor"] = int(self.symbols[str_oper1_key]["valor"]) < int(self.symbols[str_oper2_key]["valor"])
+
+            #operator is >
+            elif self.Quad[quad][0] == 8:
+                constant_key = [key for key, value in self.constants.items() if key == oper2]
+                oper2_key = [key for key, value in self.symbols.items() if value.get('memory_data') == oper2]
+                oper1_key = [key for key, value in self.symbols.items() if value.get('memory_data') == oper1]
+                str_oper1_key = oper1_key[0]
+                result_key = [key for key, value in self.symbols.items() if value.get('memory_data') == result]
+                str_result_key = result_key[0]
+
+                if constant_key:
+                    str_constant_key = constant_key[0]
+
+                    self.symbols[str_result_key]["valor"] = int(self.symbols[str_oper1_key]["valor"]) > int(
+                        self.constants[str_constant_key]["id"])
+
+                elif oper2_key:
+                    str_oper2_key = oper2_key[0]
+
+                    self.symbols[str_result_key]["valor"] = int(self.symbols[str_oper1_key]["valor"]) > int(
+                        str_oper2_key)
+
+            elif self.Quad[quad][0] == "print":
+                result_key = [key for key, value in self.symbols.items() if value.get('memory_data') == result]
+                constant_key = [key for key, value in self.constants.items() if key == result]
+                if result_key:
+                    str_result_key = result_key[0]
+                    result = self.symbols[str_result_key]["valor"]
+
+                elif constant_key:
+                    str_constant_key = constant_key[0]
+                    result = self.constants[str_constant_key]["id"]
+
+
+                print("VALOR FINAL: ", result)
+
+
+            elif self.Quad[quad][0] == "GOTOF":
+                result_key = "tb" + str(self.Quad[quad-1][3])
+                resultado = self.symbols[result_key]["valor"]
+                if type(resultado) == bool:
+                    if resultado == False:
+                        quad = self.Quad[quad][3]
+                        continue
+
+            elif self.Quad[quad][0] == "GOTO":
+                quad = self.Quad[quad][3]
+                continue
+
+
+            quad += 1
 class SemanticCube:
     def __init__(self):
         self.cube = {}
 
-        # Define result types for binary operations
         self.define('+', 'int', 'int', 'int')
         self.define('-', 'int', 'int', 'int')
         self.define('*', 'int', 'int', 'int')
@@ -401,7 +569,6 @@ class SemanticCube:
         self.define('=', 'int', 'int', 'int')
         self.define('=', 'float', 'float', 'float')
 
-        # Define result types for comparison operations
         self.define('!=', 'int', 'int', 'bool')
         self.define('!=', 'float', 'float', 'bool')
         self.define('<', 'int', 'int', 'bool')

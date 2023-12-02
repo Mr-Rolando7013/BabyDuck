@@ -8,7 +8,7 @@ from baby_duckParser import baby_duckParser
 def main():
     symbol_table = SymbolTable()
 
-    input_stream = FileStream("ejemplo.txt")
+    input_stream = FileStream("factor.txt")
     lexer = baby_duckLexer(input_stream)
     stream = CommonTokenStream(lexer)
     parser = baby_duckParser(stream)

@@ -1,64 +1,26 @@
-program babyduck;
+program MyProgram;
 var
-    foo: int;
-    bar, foobar, barfoo: float;
+  number1: int;
+  number2: float;
+  x: int;
+  y: float;
+  z: int;
 
-void emptyFunction() [{}];
-void emptyFunction2(floatNumber: float, intNumber: int) [
-    var
-        number1: int;
-        number2: float;
-
-    {
-        foo = 1 + 2;
-        bar = (+1 + -2) != 3/2;
-        foobar = 1 + 2 / (1 + 2) < foo;
-        barfoo = (69 + 420 / - foo) > 3;
-
-        if (foo != bar) {
-            foo = 1;
-        } else {
-            bar = 2;
-        };
-
-        emptyFunction();
-
-        while {
-            i = bar + 1;
-            j = foo - 1;
-
-        } do (foo < 10);
-
-
-    }
-];
-
+void simplefunc(floaty: float, inty:int)[{}];
 main
 {
-    foo = 1 + 2;
-    bar = (+1 + -2) != 3/2;
-    foobar = 1 + 2 / (1 + 2) < foo;
-    barfoo = (69 + 420 / - foo) > 3;
-
-    print(1+2);
-    print(1+2, 2+3, "The quick brown fox jumps over the lazy dog !@#$%^&*()_+][\']");
-
-
-    if (foo != bar) {
-        foo = 1;
-    } else {
-        bar = 2;
-    };
-
-    emptyFunction();
-
-    while {
-        i = bar + 1;
-        j = foo - 1;
-
-    } do (foo < 10);
-
-
+  x = 10;
+  y = 5.5;
+  z = x;
+  if (x > 5) {
+    print("x is greater than 5");
+    print(x)
+  } else {
+    print("x is not greater than 5");
+    print(y);
+  };
+  while {x = x - 1; print(x);} do (
+    x > 5
+  );
 }
-
 end
